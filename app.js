@@ -1,553 +1,311 @@
+// ==================== CONFIG ====================
+// Ganti URL ini setelah deploy server ke Render
+const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : 'https://marzzdraw-server.onrender.com'; // ganti setelah deploy
+
 // ==================== STATE ====================
-let playerName = localStorage.getItem('marzz_name') || 'User' + Math.floor(Math.random() * 9000 + 1000);
-let currentRoom = null;
+let socket = null;
+let playerName = localStorage.getItem('marzz_name') || '';
+let roomCode = null;
 let isHost = false;
+let isDrawer = false;
 let currentWord = '';
-let peer = null;
-let connections = [];
-let myPeerId = null;
 let currentColor = '#000000';
 let currentSize = 8;
-let isDrawingMode = false;
-let timerInterval = null;
-let timeLeft = 60;
+let drawing = false;
+let lastX = 0, lastY = 0;
 
-const WORDS = [
-  'Kucing', 'Anjing', 'Rumah', 'Mobil', 'Pohon', 'Bunga', 'Matahari', 'Bulan',
-  'Bintang', 'Ikan', 'Burung', 'Sepeda', 'Bola', 'Buku', 'Pensil', 'Kursi',
-  'Meja', 'Pintu', 'Jendela', 'Komputer', 'Telepon', 'Jam', 'Topi', 'Sepatu',
-  'Payung', 'Kunci', 'Gunting', 'Sendok', 'Garpu', 'Piring', 'Gelas', 'Botol',
-  'Apel', 'Pisang', 'Jeruk', 'Anggur', 'Semangka', 'Nanas', 'Mangga', 'Pepaya',
-  'Gunung', 'Sungai', 'Laut', 'Pantai', 'Hutan', 'Kota', 'Desa', 'Sekolah',
-  'Kantor', 'Toko', 'Pasar', 'Stasiun', 'Bandara', 'Jembatan', 'Menara', 'Istana'
-];
+const COLORS = ['#000000','#ffffff','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#78716c'];
 
-const MOCK_ROOMS = [
-  { id: '10t', name: 'Umum #10t', icon: '🎰', players: 9, max: 15, score: '176/240', lang: 'ID' },
-  { id: '13X', name: 'Umum #13X', icon: '🎰', players: 5, max: 5, score: '200/240', lang: 'ID' },
-  { id: '10p', name: 'Umum #10p', icon: '🎰', players: 2, max: 15, score: '0/120', lang: 'ID' },
-  { id: '13y', name: 'Umum #13y', icon: '🎰', players: 2, max: 5, score: '0/120', lang: 'ID' },
-  { id: '128', name: 'Objek #128', icon: '📷', players: 0, max: 8, score: '0/180', lang: 'ID' },
-  { id: '1Bu', name: 'Objek #1Bu', icon: '📷', players: 0, max: 8, score: '0/180', lang: 'ID' },
-  { id: '3UA', name: 'Tema Gila #3UA', icon: '🎩', players: 0, max: 6, score: '0/150', lang: 'ID' },
-  { id: '129', name: 'Objek #129', icon: '📷', players: 0, max: 8, score: '0/180', lang: 'ID' },
-  { id: '1WF', name: 'Umum #1WF', icon: '🎰', players: 0, max: 6, score: '0/360', lang: 'ID' },
-  { id: '12y', name: 'Makanan #12y', icon: '🍔', players: 0, max: 5, score: '0/480', lang: 'ID' },
-  { id: 'ECK', name: 'Objek #ECK', icon: '📷', players: 0, max: 8, score: '0/180', lang: 'ID' },
-  { id: '113', name: 'Pekerjaan #113', icon: '💼', players: 0, max: 5, score: '0/480', lang: 'ID' },
-];
-
-// ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('playerName').value = playerName;
-  document.getElementById('displayName').textContent = playerName;
-
-  document.getElementById('playerName').addEventListener('change', (e) => {
-    playerName = e.target.value.trim() || 'Anonim';
-    localStorage.setItem('marzz_name', playerName);
-    document.getElementById('displayName').textContent = playerName;
-  });
-
-  renderRooms();
-  setupCanvas();
-  setupTools();
-});
-
-// ==================== NAVIGATION ====================
-function showHome() {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('homeScreen').classList.add('active');
-}
-
-function showRooms() {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('roomsScreen').classList.add('active');
-  renderRooms();
-}
-
-function showGame() {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('gameScreen').classList.add('active');
-}
-
-// ==================== ROOMS ====================
-function renderRooms() {
-  const grid = document.getElementById('roomsGrid');
-  grid.innerHTML = MOCK_ROOMS.map(r => `
-    <div class="room-card" onclick="selectRoom('${r.id}')">
-      <div class="room-icon">${r.icon}<span class="check">✓</span></div>
-      <div class="room-name">${r.name}</div>
-      <div class="room-stats">
-        <span>👥 ${r.players}/${r.max}</span>
-        <span>💬 ${r.lang}</span>
-        <span>🏆 ${r.score}</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function selectRoom(id) {
-  document.querySelectorAll('.room-card').forEach(c => c.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
-}
-
-function createRoom() {
-  document.getElementById('modalTitle').textContent = 'Buat Ruangan Baru';
-  document.getElementById('roomNameInput').value = 'Umum #' + Math.random().toString(36).substring(2, 5).toUpperCase();
-  document.getElementById('roomCodeInput').value = '';
-  document.getElementById('modalConfirmBtn').textContent = 'Buat';
-  document.getElementById('modalConfirmBtn').onclick = confirmCreateRoom;
-  document.getElementById('roomModal').classList.remove('hidden');
-}
-
-function closeModal() {
-  document.getElementById('roomModal').classList.add('hidden');
-}
-
-function joinByCode() {
-  document.getElementById('joinModal').classList.remove('hidden');
-  document.getElementById('joinCodeInput').value = '';
-  document.getElementById('joinCodeInput').focus();
-}
-
-function closeJoinModal() {
-  document.getElementById('joinModal').classList.add('hidden');
-}
-
-function generateCode() {
-  // PeerJS IDs work better with lowercase + numbers
-  return Math.random().toString(36).substring(2, 10);
-}
-
-async function confirmCreateRoom() {
-  const name = document.getElementById('roomNameInput').value.trim() || 'Ruangan Baru';
-  closeModal();
-  isHost = true;
-  currentRoom = { code: '...', name, players: [{ id: 'me', name: playerName, score: 0 }] };
-
-  addSystemMessage('Sedang membuat ruangan...');
-  showGame();
-  document.getElementById('gameRoomName').textContent = name;
-  document.getElementById('gameRoomCode').textContent = 'Membuat...';
-
-  try {
-    const id = await initPeerAsHost();
-    currentRoom.code = id;
-    document.getElementById('gameRoomCode').textContent = id;
-    updatePlayersList();
-    addSystemMessage('✅ Ruangan siap!');
-    addSystemMessage('Kode ruangan: ' + id);
-    addSystemMessage('Bagikan kode di atas ke teman. Mereka harus masuk dengan kode yang SAMA.');
-    addSystemMessage('Setelah teman masuk, ketik /start di chat untuk mulai.');
-  } catch (e) {
-    addSystemMessage('❌ Gagal membuat ruangan: ' + e.message);
-  }
-}
-
-async function doJoinByCode() {
-  const code = document.getElementById('joinCodeInput').value.trim();
-  if (!code || code.length < 4) {
-    alert('Masukkan kode ruangan yang valid!');
-    return;
-  }
-  closeJoinModal();
-  isHost = false;
-  currentRoom = { code, name: 'Ruangan ' + code, players: [] };
-
-  showGame();
-  document.getElementById('gameRoomName').textContent = 'Ruangan ' + code;
-  document.getElementById('gameRoomCode').textContent = code;
-  addSystemMessage('Sedang menghubungkan ke host...');
-
-  try {
-    await initPeerAsJoiner(code);
-    addSystemMessage('✅ Terhubung! Menunggu host memulai game...');
-  } catch (e) {
-    addSystemMessage('❌ Gagal terhubung: ' + e.message);
-    addSystemMessage('Pastikan host sudah membuat ruangan dan kode-nya benar.');
-  }
-}
-
-function quickPlay() {
-  confirmCreateRoom();
-}
-
-// ==================== PEERJS ====================
-function initPeerAsHost() {
-  return new Promise((resolve, reject) => {
-    if (peer) {
-      try { peer.destroy(); } catch(e) {}
-    }
-
-    peer = new Peer({
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      reject(new Error('Timeout membuat peer. Coba refresh halaman.'));
-    }, 15000);
-
-    peer.on('open', (id) => {
-      clearTimeout(timeout);
-      myPeerId = id;
-      console.log('Host Peer ID:', id);
-      resolve(id);
-    });
-
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
-    peer.on('error', (err) => {
-      clearTimeout(timeout);
-      console.error('Peer error:', err);
-      reject(new Error(err.type || err.message || 'Unknown error'));
-    });
-  });
-}
-
-function initPeerAsJoiner(hostId) {
-  return new Promise((resolve, reject) => {
-    if (peer) {
-      try { peer.destroy(); } catch(e) {}
-    }
-
-    peer = new Peer({
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      reject(new Error('Timeout koneksi. Pastikan host online dan kode benar.'));
-    }, 15000);
-
-    peer.on('open', (id) => {
-      myPeerId = id;
-      console.log('Joiner Peer ID:', id, 'connecting to', hostId);
-
-      const conn = peer.connect(hostId, { reliable: true });
-      
-      conn.on('open', () => {
-        clearTimeout(timeout);
-        setupConnection(conn);
-        // Introduce myself
-        conn.send({ type: 'player-join', name: playerName, id: myPeerId });
-        resolve(id);
-      });
-
-      conn.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(new Error('Gagal connect ke host'));
-      });
-    });
-
-    peer.on('error', (err) => {
-      clearTimeout(timeout);
-      console.error('Peer error:', err);
-      reject(new Error(err.type || 'Peer error'));
-    });
-  });
-}
-
-function setupConnection(conn) {
-  // Avoid duplicate
-  if (connections.find(c => c.peer === conn.peer)) return;
-  connections.push(conn);
-
-  conn.on('data', (data) => {
-    handlePeerData(data, conn);
-  });
-
-  conn.on('close', () => {
-    connections = connections.filter(c => c !== conn);
-    addSystemMessage('Seorang pemain keluar.');
-  });
-
-  conn.on('error', (err) => {
-    console.error('Connection error', err);
-  });
-
-  if (isHost) {
-    addSystemMessage('Pemain baru terhubung!');
-    // Send current room state
-    conn.send({ type: 'welcome', room: currentRoom, word: currentWord });
-  }
-}
-
-function broadcast(data) {
-  connections.forEach(c => {
-    if (c.open) {
-      try { c.send(data); } catch(e) { console.error(e); }
-    }
-  });
-}
-
-function handlePeerData(data, conn) {
-  switch (data.type) {
-    case 'player-join':
-      if (currentRoom && !currentRoom.players.find(p => p.id === data.id)) {
-        currentRoom.players.push({ id: data.id, name: data.name, score: 0 });
-        updatePlayersList();
-        addSystemMessage(data.name + ' bergabung!');
-        // Tell others too
-        if (isHost) broadcast({ type: 'player-join', name: data.name, id: data.id });
-      }
-      break;
-    case 'welcome':
-      if (data.room) {
-        currentRoom = data.room;
-        // Make sure I'm in the list
-        if (!currentRoom.players.find(p => p.name === playerName)) {
-          currentRoom.players.push({ id: myPeerId, name: playerName, score: 0 });
-        }
-        updatePlayersList();
-      }
-      if (data.word) currentWord = data.word;
-      break;
-    case 'draw':
-      drawRemote(data);
-      break;
-    case 'clear':
-      clearCanvas(false);
-      break;
-    case 'chat':
-      addChatMessage(data.name, data.msg);
-      break;
-    case 'start-round':
-      startRound(data.word, data.drawer);
-      break;
-    case 'guess-correct':
-      addChatMessage(data.name, '✅ Menebak dengan benar!', true);
-      break;
-  }
-}
-
-// ==================== CANVAS ====================
-function setupCanvas() {
-  const canvas = document.getElementById('drawCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  let drawing = false;
-  let lastX = 0, lastY = 0;
-
-  function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    if (e.touches) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY
-      };
-    }
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
+  if (playerName) {
+    document.getElementById('nameInput').value = playerName;
+    document.getElementById('homeName').textContent = playerName;
   }
 
-  function startDraw(e) {
-    if (!isDrawingMode) return;
-    drawing = true;
-    const pos = getPos(e);
-    lastX = pos.x;
-    lastY = pos.y;
-  }
-
-  function draw(e) {
-    if (!drawing || !isDrawingMode) return;
-    e.preventDefault();
-    const pos = getPos(e);
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = currentSize;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-
-    broadcast({
-      type: 'draw',
-      x0: lastX, y0: lastY,
-      x1: pos.x, y1: pos.y,
-      color: currentColor,
-      size: currentSize
-    });
-
-    lastX = pos.x;
-    lastY = pos.y;
-  }
-
-  function stopDraw() { drawing = false; }
-
-  canvas.addEventListener('mousedown', startDraw);
-  canvas.addEventListener('mousemove', draw);
-  canvas.addEventListener('mouseup', stopDraw);
-  canvas.addEventListener('mouseleave', stopDraw);
-  canvas.addEventListener('touchstart', startDraw, { passive: false });
-  canvas.addEventListener('touchmove', draw, { passive: false });
-  canvas.addEventListener('touchend', stopDraw);
-}
-
-function drawRemote(data) {
-  const canvas = document.getElementById('drawCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = data.color;
-  ctx.lineWidth = data.size;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(data.x0, data.y0);
-  ctx.lineTo(data.x1, data.y1);
-  ctx.stroke();
-}
-
-function clearCanvas(broadcastIt = true) {
-  const canvas = document.getElementById('drawCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (broadcastIt) broadcast({ type: 'clear' });
-}
-
-function setupTools() {
-  document.querySelectorAll('.color-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+  const colorsEl = document.getElementById('colors');
+  COLORS.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'color-btn' + (i === 0 ? ' active' : '');
+    btn.style.background = c;
+    if (c === '#ffffff') btn.style.border = '1px solid #ccc';
+    btn.dataset.color = c;
+    btn.onclick = () => {
       document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentColor = btn.dataset.color;
-    });
+      currentColor = c;
+    };
+    colorsEl.appendChild(btn);
   });
 
   document.querySelectorAll('.size-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.onclick = () => {
       document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentSize = parseInt(btn.dataset.size);
-    });
+    };
   });
 
-  document.getElementById('clearBtn').addEventListener('click', () => clearCanvas(true));
-  document.getElementById('undoBtn').addEventListener('click', () => clearCanvas(true));
+  document.getElementById('btnCreate').onclick = createRoom;
+  document.getElementById('btnJoin').onclick = () => {
+    document.getElementById('joinModal').classList.remove('hidden');
+    document.getElementById('codeInput').focus();
+  };
+  document.getElementById('btnCancelJoin').onclick = () => {
+    document.getElementById('joinModal').classList.add('hidden');
+  };
+  document.getElementById('btnConfirmJoin').onclick = joinRoom;
+  document.getElementById('btnLeave').onclick = leaveRoom;
+  document.getElementById('btnStart').onclick = startGame;
+  document.getElementById('btnClear').onclick = () => {
+    clearCanvas();
+    if (socket) socket.emit('clear');
+  };
+  document.getElementById('btnCopy').onclick = () => {
+    navigator.clipboard.writeText(roomCode);
+    addSystem('Kode disalin!');
+  };
+  document.getElementById('btnSend').onclick = sendChat;
+  document.getElementById('chatInput').onkeypress = (e) => {
+    if (e.key === 'Enter') sendChat();
+  };
 
-  document.getElementById('sendGuess').addEventListener('click', sendGuess);
-  document.getElementById('guessInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendGuess();
+  document.getElementById('nameInput').onchange = (e) => {
+    playerName = e.target.value.trim() || 'Player';
+    localStorage.setItem('marzz_name', playerName);
+    document.getElementById('homeName').textContent = playerName;
+  };
+
+  setupCanvas();
+});
+
+function connectSocket() {
+  return new Promise((resolve, reject) => {
+    socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => resolve());
+    socket.on('connect_error', (err) => reject(err));
+
+    socket.on('room-created', (data) => {
+      roomCode = data.code;
+      isHost = true;
+      document.getElementById('roomCode').textContent = data.code;
+      document.getElementById('roomName').textContent = data.name;
+      document.getElementById('hostHint').style.display = 'block';
+      document.getElementById('btnStart').style.display = 'block';
+      updatePlayers(data.players);
+      showGame();
+      addSystem('Ruangan dibuat! Bagikan kode: ' + data.code);
+    });
+
+    socket.on('room-joined', (data) => {
+      roomCode = data.code;
+      isHost = false;
+      document.getElementById('roomCode').textContent = data.code;
+      document.getElementById('roomName').textContent = data.name;
+      updatePlayers(data.players);
+      showGame();
+      addSystem('Berhasil gabung ke ruangan!');
+    });
+
+    socket.on('player-joined', (data) => {
+      updatePlayers(data.players);
+      addSystem(data.name + ' bergabung!');
+    });
+
+    socket.on('player-left', (data) => {
+      updatePlayers(data.players);
+      addSystem(data.name + ' keluar.');
+    });
+
+    socket.on('game-started', (data) => {
+      currentWord = data.word || '';
+      isDrawer = data.drawer === playerName;
+      document.getElementById('roundInfo').textContent = 'Ronde ' + data.round;
+      document.getElementById('btnStart').style.display = 'none';
+      document.getElementById('hostHint').style.display = 'none';
+      clearCanvas();
+
+      if (isDrawer) {
+        document.getElementById('wordBar').textContent = 'Gambar: ' + data.word;
+        document.getElementById('toolbar').classList.add('active');
+        addSystem('Giliranmu menggambar!');
+      } else {
+        document.getElementById('wordBar').textContent = data.hint || '_ _ _ _';
+        document.getElementById('toolbar').classList.remove('active');
+        addSystem(data.drawer + ' sedang menggambar...');
+      }
+      startTimer(data.time || 60);
+    });
+
+    socket.on('draw', (data) => {
+      if (!isDrawer) drawLine(data);
+    });
+
+    socket.on('clear', () => clearCanvas());
+
+    socket.on('chat', (data) => {
+      addChat(data.name, data.msg, data.correct);
+    });
+
+    socket.on('correct-guess', (data) => {
+      addChat(data.name, '✅ Benar! +' + data.points, true);
+      updatePlayers(data.players);
+    });
+
+    socket.on('time-up', (data) => {
+      addSystem('Waktu habis! Jawaban: ' + data.word);
+      document.getElementById('toolbar').classList.remove('active');
+      isDrawer = false;
+    });
+
+    socket.on('error-msg', (msg) => alert(msg));
   });
 }
 
-// ==================== GAME LOGIC ====================
-function updatePlayersList() {
+async function createRoom() {
+  playerName = document.getElementById('nameInput').value.trim() || 'Player';
+  localStorage.setItem('marzz_name', playerName);
+  try {
+    await connectSocket();
+    socket.emit('create-room', { name: playerName });
+  } catch (e) {
+    alert('Gagal konek ke server. Server belum di-deploy atau sedang sleep.\n\nError: ' + e.message);
+  }
+}
+
+async function joinRoom() {
+  const code = document.getElementById('codeInput').value.trim().toUpperCase();
+  if (!code || code.length < 4) { alert('Masukkan kode yang valid'); return; }
+  playerName = document.getElementById('nameInput').value.trim() || 'Player';
+  localStorage.setItem('marzz_name', playerName);
+  document.getElementById('joinModal').classList.add('hidden');
+  try {
+    await connectSocket();
+    socket.emit('join-room', { code, name: playerName });
+  } catch (e) {
+    alert('Gagal konek ke server.\n\nError: ' + e.message);
+  }
+}
+
+function startGame() { if (socket) socket.emit('start-game'); }
+
+function leaveRoom() {
+  if (socket) { socket.emit('leave-room'); socket.disconnect(); }
+  socket = null; roomCode = null; isHost = false; isDrawer = false;
+  document.getElementById('chatLog').innerHTML = '';
+  document.getElementById('home').classList.add('active');
+  document.getElementById('game').classList.remove('active');
+  document.getElementById('toolbar').classList.remove('active');
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg || !socket) return;
+  socket.emit('chat', { msg });
+  input.value = '';
+}
+
+function showGame() {
+  document.getElementById('home').classList.remove('active');
+  document.getElementById('game').classList.add('active');
+}
+
+function updatePlayers(players) {
   const list = document.getElementById('playersList');
-  if (!currentRoom) return;
-  list.innerHTML = currentRoom.players.map(p => `
+  list.innerHTML = players.map(p => `
     <li class="${p.name === playerName ? 'me' : ''}">
       <span>😊</span>
-      <span>${p.name}</span>
+      <span>${p.name}${p.isHost ? ' 👑' : ''}</span>
       <span class="score">${p.score || 0}</span>
     </li>
   `).join('');
 }
 
-function addSystemMessage(msg) {
+function addSystem(msg) {
   const div = document.createElement('div');
   div.className = 'msg system';
   div.textContent = msg;
-  const chat = document.getElementById('chatMessages');
-  if (chat) {
-    chat.appendChild(div);
-    chat.scrollTop = 9999;
-  }
+  document.getElementById('chatLog').appendChild(div);
+  document.getElementById('chatLog').scrollTop = 99999;
 }
 
-function addChatMessage(name, msg, correct = false) {
+function addChat(name, msg, correct = false) {
   const div = document.createElement('div');
   div.className = 'msg' + (correct ? ' correct' : '');
   div.innerHTML = `<strong>${name}:</strong> ${msg}`;
-  const chat = document.getElementById('chatMessages');
-  if (chat) {
-    chat.appendChild(div);
-    chat.scrollTop = 9999;
-  }
+  document.getElementById('chatLog').appendChild(div);
+  document.getElementById('chatLog').scrollTop = 99999;
 }
 
-function sendGuess() {
-  const input = document.getElementById('guessInput');
-  const msg = input.value.trim();
-  if (!msg) return;
-
-  // Command /start
-  if (msg === '/start' && isHost) {
-    input.value = '';
-    const word = WORDS[Math.floor(Math.random() * WORDS.length)];
-    broadcast({ type: 'start-round', word, drawer: playerName });
-    startRound(word, playerName);
-    return;
-  }
-
-  if (currentWord && msg.toLowerCase() === currentWord.toLowerCase() && !isDrawingMode) {
-    addChatMessage(playerName, '✅ ' + msg, true);
-    broadcast({ type: 'guess-correct', name: playerName });
-    const me = currentRoom.players.find(p => p.name === playerName);
-    if (me) me.score = (me.score || 0) + 100;
-    updatePlayersList();
-  } else {
-    addChatMessage(playerName, msg);
-    broadcast({ type: 'chat', name: playerName, msg });
-  }
-  input.value = '';
-}
-
-function startRound(word, drawerName) {
-  currentWord = word;
-  clearCanvas(false);
-  timeLeft = 60;
-  document.getElementById('timer').textContent = timeLeft;
-
-  if (drawerName === playerName) {
-    isDrawingMode = true;
-    document.getElementById('wordDisplay').textContent = 'Gambar: ' + word;
-    document.getElementById('drawingTools').style.opacity = '1';
-    addSystemMessage('Giliranmu menggambar: ' + word);
-  } else {
-    isDrawingMode = false;
-    document.getElementById('wordDisplay').textContent = word.split('').map(() => '_').join(' ');
-    document.getElementById('drawingTools').style.opacity = '0.4';
-    addSystemMessage(drawerName + ' sedang menggambar...');
-  }
-
+let timerInterval = null;
+function startTimer(seconds) {
+  let t = seconds;
+  document.getElementById('timer').textContent = t;
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
-    timeLeft--;
-    document.getElementById('timer').textContent = timeLeft;
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      addSystemMessage('Waktu habis! Jawaban: ' + currentWord);
-      isDrawingMode = false;
-    }
+    t--;
+    document.getElementById('timer').textContent = t;
+    if (t <= 0) clearInterval(timerInterval);
   }, 1000);
 }
 
-function leaveRoom() {
-  if (peer) {
-    try { peer.destroy(); } catch(e) {}
+function setupCanvas() {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width;
+    const sy = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
   }
-  connections = [];
-  currentRoom = null;
-  isHost = false;
-  isDrawingMode = false;
-  if (timerInterval) clearInterval(timerInterval);
-  showRooms();
-  clearCanvas(false);
-  document.getElementById('chatMessages').innerHTML = '';
+
+  function start(e) {
+    if (!isDrawer) return;
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x; lastY = p.y;
+  }
+
+  function move(e) {
+    if (!drawing || !isDrawer) return;
+    e.preventDefault();
+    const p = pos(e);
+    const data = { x0: lastX, y0: lastY, x1: p.x, y1: p.y, color: currentColor, size: currentSize };
+    drawLine(data);
+    if (socket) socket.emit('draw', data);
+    lastX = p.x; lastY = p.y;
+  }
+
+  function stop() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', stop);
+  canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', stop);
+}
+
+function drawLine(d) {
+  const ctx = document.getElementById('canvas').getContext('2d');
+  ctx.strokeStyle = d.color;
+  ctx.lineWidth = d.size;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(d.x0, d.y0);
+  ctx.lineTo(d.x1, d.y1);
+  ctx.stroke();
+}
+
+function clearCanvas() {
+  const c = document.getElementById('canvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
 }

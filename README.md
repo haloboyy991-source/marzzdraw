@@ -1,24 +1,19 @@
-# 🎨 MarzzDraw
+# MarzzDraw v2
 
-Multiplayer Drawing & Guessing Game (Gartic.io style)
+Premium multiplayer drawing & guessing game.
 
-**Live Demo:** https://haloboyy991-source.github.io/marzzdraw/
+## Frontend (GitHub Pages)
+https://haloboyy991-source.github.io/marzzdraw/
 
-## Cara Main
-1. Buka link di atas
-2. Isi nama kamu
-3. Klik **RUANGAN BARU** untuk buat ruangan (kode otomatis dibuat)
-4. Bagikan **kode** ke teman
-5. Teman klik **MAIN** lalu masukkan kode
-6. Host ketik `/start` di chat untuk mulai ronde
-7. Gambar / tebak!
+## Backend (wajib di-deploy)
 
-## Fitur
-- Desain mirip Gartic.io
-- Multiplayer real-time (PeerJS)
-- Kode ruangan
-- Canvas + tools warna & kuas
-- Chat tebak kata
-- Timer & skor
+1. Buka https://render.com → Sign up gratis
+2. New → Web Service
+3. Connect repo **haloboyy991-source/marzzdraw**
+4. Settings:
+   - Build Command: `npm install`
+   - Start Command: `node server/index.js`
+5. Deploy
+6. Setelah dapat URL (contoh: `https://marzzdraw-xxxx.onrender.com`), edit file `app.js` baris SERVER_URL ganti ke URL tersebut.
 
-Dibuat dengan ❤️
+Lalu push lagi, atau langsung ganti di GitHub.
