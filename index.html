@@ -3,235 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MarzzDraw - Draw, Guess, Win!</title>
+  <title>MarzzDraw — Draw. Guess. Win.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="bg-pattern"></div>
+  <div class="bg"></div>
 
-  <!-- HEADER -->
-  <header class="top-bar">
-    <div class="app-download">
-      <span>DAPATKAN APLIKASI!</span>
-      <a href="#" class="btn-android">ANDROID</a>
-      <a href="#" class="btn-ios">iOS</a>
-    </div>
-    <div class="logo-area">
-      <h1 class="logo">Marzz<span>Draw</span></h1>
-      <p class="tagline">DRAW, GUESS, WIN</p>
-    </div>
-    <div class="user-area">
-      <span id="displayName">User2594</span>
-      <div class="avatar">😊</div>
-    </div>
-  </header>
+  <!-- HOME -->
+  <div id="home" class="page active">
+    <header class="top">
+      <div class="brand">
+        <span class="logo-mark">M</span>
+        <div>
+          <div class="logo-text">MarzzDraw</div>
+          <div class="logo-sub">DRAW · GUESS · WIN</div>
+        </div>
+      </div>
+      <div class="user-chip">
+        <span id="homeName">Player</span>
+        <div class="avatar">😊</div>
+      </div>
+    </header>
 
-  <!-- MAIN CONTENT -->
-  <main id="mainContent">
-    <!-- HOME SCREEN -->
-    <section id="homeScreen" class="screen active">
-      <div class="home-card">
-        <div class="home-left">
-          <div class="new-badge">NEW GAME!</div>
-          <h2>MAIN LANGSUNG</h2>
-          <div class="avatar-big">😊</div>
-          <div class="form-group">
-            <label>NAMA:</label>
-            <input type="text" id="playerName" value="User2594" maxlength="16">
+    <main class="home-main">
+      <div class="hero-card">
+        <div class="hero-left">
+          <div class="badge">NEW</div>
+          <h1>Main bareng<br>teman sekarang</h1>
+          <p class="hero-desc">Gambar, tebak, dan kumpulkan skor. Multiplayer real-time.</p>
+
+          <div class="field">
+            <label>Nama kamu</label>
+            <input type="text" id="nameInput" maxlength="16" placeholder="Masukkan nama...">
           </div>
-          <div class="form-group">
-            <label>BAHASA:</label>
-            <select id="language">
-              <option value="id" selected>Bahasa Indonesia</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-          <div class="home-buttons">
-            <button class="btn btn-blue" onclick="showRooms()">
-              <span class="icon">🏠</span> RUANGAN
+
+          <div class="actions">
+            <button class="btn btn-primary" id="btnCreate">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              Buat Ruangan
             </button>
-            <button class="btn btn-yellow" onclick="quickPlay()">
-              <span class="icon">🎮</span> MAIN!
+            <button class="btn btn-secondary" id="btnJoin">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+              Gabung dengan Kode
             </button>
           </div>
         </div>
 
-        <div class="home-divider">ATAU</div>
-
-        <div class="home-right">
-          <h2>MASUK DI SINI</h2>
-          <div class="feature-icons">
-            <div class="feature">
-              <div class="f-icon">📝</div>
-              <span>BUAT TEMA BARU</span>
+        <div class="hero-right">
+          <div class="preview-card">
+            <div class="preview-header">Contoh Ruangan</div>
+            <div class="preview-players">
+              <div class="p-item"><span>😊</span> Kamu</div>
+              <div class="p-item"><span>😎</span> Teman 1</div>
+              <div class="p-item"><span>🤓</span> Teman 2</div>
             </div>
-            <div class="feature">
-              <div class="f-icon">❤️</div>
-              <span>RUANGAN FAVORIT</span>
-            </div>
-            <div class="feature">
-              <div class="f-icon">💬</div>
-              <span>NGOBROL DENGAN PEMAIN LAIN</span>
-            </div>
-          </div>
-          <p class="login-label">PILIH CARA UNTUK MASUK:</p>
-          <div class="social-buttons">
-            <button class="social twitter">TWITTER</button>
-            <button class="social google">GOOGLE</button>
-            <button class="social vk">VK</button>
-            <button class="social discord">DISCORD</button>
+            <div class="preview-code">Kode: <strong>ABC123</strong></div>
           </div>
         </div>
       </div>
-    </section>
+    </main>
+  </div>
 
-    <!-- ROOMS SCREEN -->
-    <section id="roomsScreen" class="screen">
-      <div class="rooms-header">
-        <button class="back-btn" onclick="showHome()">◀</button>
-        <div class="search-box">
-          <input type="text" id="searchRoom" placeholder="cari">
-        </div>
-        <div class="rooms-title">
-          <span class="ribbon">RUANGAN</span>
-        </div>
-        <div class="filters">
-          <select id="langFilter">
-            <option>BAHASA ID</option>
-          </select>
-          <select id="temaFilter">
-            <option>TEMA SEMUA</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="rooms-grid" id="roomsGrid">
-        <!-- Rooms will be injected here -->
-      </div>
-
-      <div class="rooms-bottom">
-        <button class="btn btn-blue" onclick="createRoom()">
-          <span class="icon">📱</span> RUANGAN BARU
-        </button>
-        <button class="btn btn-gray" onclick="joinByCode()">
-          <span class="icon">🎮</span> MAIN
-        </button>
-      </div>
-    </section>
-
-    <!-- CREATE / JOIN ROOM MODAL -->
-    <div id="roomModal" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modalTitle">Buat Ruangan Baru</h2>
-        <div class="form-group">
-          <label>Nama Ruangan</label>
-          <input type="text" id="roomNameInput" placeholder="Contoh: Umum #XYZ">
-        </div>
-        <div class="form-group">
-          <label>Kode Ruangan (opsional)</label>
-          <input type="text" id="roomCodeInput" placeholder="Kosongkan untuk auto-generate">
-        </div>
-        <div class="form-group">
-          <label>Maks Pemain</label>
-          <select id="maxPlayers">
-            <option>6</option>
-            <option selected>8</option>
-            <option>10</option>
-            <option>15</option>
-          </select>
-        </div>
-        <div class="modal-buttons">
-          <button class="btn btn-gray" onclick="closeModal()">Batal</button>
-          <button class="btn btn-yellow" id="modalConfirmBtn" onclick="confirmCreateRoom()">Buat</button>
-        </div>
+  <!-- JOIN MODAL -->
+  <div id="joinModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>Gabung Ruangan</h2>
+      <p>Masukkan kode yang diberikan host</p>
+      <input type="text" id="codeInput" placeholder="Contoh: ABC123" maxlength="8" style="text-transform:uppercase">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancelJoin">Batal</button>
+        <button class="btn btn-primary" id="btnConfirmJoin">Gabung</button>
       </div>
     </div>
+  </div>
 
-    <!-- JOIN BY CODE MODAL -->
-    <div id="joinModal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Masuk dengan Kode Ruangan</h2>
-        <div class="form-group">
-          <label>Kode Ruangan</label>
-          <input type="text" id="joinCodeInput" placeholder="Masukkan kode (contoh: ABC123)" maxlength="8" style="text-transform:uppercase">
-        </div>
-        <div class="modal-buttons">
-          <button class="btn btn-gray" onclick="closeJoinModal()">Batal</button>
-          <button class="btn btn-yellow" onclick="doJoinByCode()">Masuk</button>
+  <!-- LOBBY / GAME -->
+  <div id="game" class="page">
+    <header class="game-top">
+      <div class="room-meta">
+        <div class="room-name" id="roomName">Ruangan</div>
+        <div class="room-code-wrap">
+          Kode: <span id="roomCode">----</span>
+          <button class="copy-btn" id="btnCopy" title="Salin kode">📋</button>
         </div>
       </div>
+      <div class="game-status">
+        <span id="roundInfo">Menunggu pemain...</span>
+        <div class="timer" id="timer">--</div>
+      </div>
+      <button class="btn btn-danger btn-sm" id="btnLeave">Keluar</button>
+    </header>
+
+    <div class="game-layout">
+      <aside class="panel players-panel">
+        <div class="panel-title">Pemain</div>
+        <ul id="playersList"></ul>
+        <div class="host-hint" id="hostHint" style="display:none">
+          Kamu host. Tekan <kbd>Mulai</kbd> setelah teman masuk.
+        </div>
+        <button class="btn btn-primary btn-block" id="btnStart" style="display:none">Mulai Game</button>
+      </aside>
+
+      <section class="canvas-wrap">
+        <div class="word-bar" id="wordBar">Menunggu game dimulai...</div>
+        <canvas id="canvas" width="720" height="440"></canvas>
+        <div class="toolbar" id="toolbar">
+          <div class="colors" id="colors"></div>
+          <div class="sizes">
+            <button class="size-btn" data-size="4">•</button>
+            <button class="size-btn active" data-size="8">●</button>
+            <button class="size-btn" data-size="16">⬤</button>
+          </div>
+          <button class="tool-btn" id="btnClear">Hapus</button>
+        </div>
+      </section>
+
+      <aside class="panel chat-panel">
+        <div class="panel-title">Chat & Tebakan</div>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="chat-input-wrap">
+          <input type="text" id="chatInput" placeholder="Tulis tebakan..." maxlength="40">
+          <button id="btnSend">➤</button>
+        </div>
+      </aside>
     </div>
+  </div>
 
-    <!-- GAME SCREEN -->
-    <section id="gameScreen" class="screen">
-      <div class="game-header">
-        <div class="room-info">
-          <span id="gameRoomName">Ruangan</span>
-          <span class="room-code">Kode: <strong id="gameRoomCode">----</strong></span>
-        </div>
-        <div class="round-info">
-          <span id="roundText">Ronde 1/3</span>
-          <span id="timer">60</span>
-        </div>
-        <button class="btn-leave" onclick="leaveRoom()">Keluar</button>
-      </div>
-
-      <div class="game-body">
-        <div class="players-panel">
-          <h3>Pemain</h3>
-          <ul id="playersList"></ul>
-        </div>
-
-        <div class="canvas-area">
-          <div class="word-display" id="wordDisplay">Menunggu pemain...</div>
-          <canvas id="drawCanvas" width="700" height="420"></canvas>
-          <div class="tools" id="drawingTools">
-            <div class="colors">
-              <button class="color-btn" data-color="#000000" style="background:#000"></button>
-              <button class="color-btn" data-color="#FFFFFF" style="background:#fff;border:1px solid #ccc"></button>
-              <button class="color-btn" data-color="#FF0000" style="background:#f00"></button>
-              <button class="color-btn" data-color="#00FF00" style="background:#0f0"></button>
-              <button class="color-btn" data-color="#0000FF" style="background:#00f"></button>
-              <button class="color-btn" data-color="#FFFF00" style="background:#ff0"></button>
-              <button class="color-btn" data-color="#FF00FF" style="background:#f0f"></button>
-              <button class="color-btn" data-color="#00FFFF" style="background:#0ff"></button>
-              <button class="color-btn" data-color="#FFA500" style="background:#ffa500"></button>
-              <button class="color-btn" data-color="#8B4513" style="background:#8B4513"></button>
-            </div>
-            <div class="brush-sizes">
-              <button class="size-btn" data-size="3">•</button>
-              <button class="size-btn active" data-size="8">●</button>
-              <button class="size-btn" data-size="16">⬤</button>
-            </div>
-            <button id="clearBtn" class="tool-btn">Hapus</button>
-            <button id="undoBtn" class="tool-btn">Undo</button>
-          </div>
-        </div>
-
-        <div class="chat-panel">
-          <div class="chat-messages" id="chatMessages"></div>
-          <div class="chat-input">
-            <input type="text" id="guessInput" placeholder="Tebak kata..." maxlength="40">
-            <button id="sendGuess">➤</button>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <span>MarzzDraw © 2026</span>
-    <nav>
-      <a href="#">ASET</a> |
-      <a href="#">KETENTUAN LAYANAN</a> |
-      <a href="#">KEBIJAKAN PRIVASI</a> |
-      <a href="#">TERIMA KASIH</a> |
-      <a href="#">KONTAK</a>
-    </nav>
-  </footer>
-
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
