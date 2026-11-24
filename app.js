@@ -2,12 +2,10 @@
 let playerName = localStorage.getItem('marzz_name') || 'User' + Math.floor(Math.random() * 9000 + 1000);
 let currentRoom = null;
 let isHost = false;
-let isDrawing = false;
 let currentWord = '';
 let peer = null;
 let connections = [];
 let myPeerId = null;
-let drawingHistory = [];
 let currentColor = '#000000';
 let currentSize = 8;
 let isDrawingMode = false;
@@ -24,7 +22,6 @@ const WORDS = [
   'Kantor', 'Toko', 'Pasar', 'Stasiun', 'Bandara', 'Jembatan', 'Menara', 'Istana'
 ];
 
-// Mock rooms for display
 const MOCK_ROOMS = [
   { id: '10t', name: 'Umum #10t', icon: '🎰', players: 9, max: 15, score: '176/240', lang: 'ID' },
   { id: '13X', name: 'Umum #13X', icon: '🎰', players: 5, max: 5, score: '200/240', lang: 'ID' },
@@ -78,10 +75,7 @@ function renderRooms() {
   const grid = document.getElementById('roomsGrid');
   grid.innerHTML = MOCK_ROOMS.map(r => `
     <div class="room-card" onclick="selectRoom('${r.id}')">
-      <div class="room-icon">
-        ${r.icon}
-        <span class="check">✓</span>
-      </div>
+      <div class="room-icon">${r.icon}<span class="check">✓</span></div>
       <div class="room-name">${r.name}</div>
       <div class="room-stats">
         <span>👥 ${r.players}/${r.max}</span>
@@ -121,24 +115,37 @@ function closeJoinModal() {
 }
 
 function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  // PeerJS IDs work better with lowercase + numbers
+  return Math.random().toString(36).substring(2, 10);
 }
 
 async function confirmCreateRoom() {
   const name = document.getElementById('roomNameInput').value.trim() || 'Ruangan Baru';
-  let code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-  if (!code) code = generateCode();
-
   closeModal();
   isHost = true;
-  currentRoom = { code, name, players: [{ id: 'me', name: playerName, score: 0 }] };
+  currentRoom = { code: '...', name, players: [{ id: 'me', name: playerName, score: 0 }] };
 
-  await initPeer(code);
-  enterGame(code, name);
+  addSystemMessage('Sedang membuat ruangan...');
+  showGame();
+  document.getElementById('gameRoomName').textContent = name;
+  document.getElementById('gameRoomCode').textContent = 'Membuat...';
+
+  try {
+    const id = await initPeerAsHost();
+    currentRoom.code = id;
+    document.getElementById('gameRoomCode').textContent = id;
+    updatePlayersList();
+    addSystemMessage('✅ Ruangan siap!');
+    addSystemMessage('Kode ruangan: ' + id);
+    addSystemMessage('Bagikan kode di atas ke teman. Mereka harus masuk dengan kode yang SAMA.');
+    addSystemMessage('Setelah teman masuk, ketik /start di chat untuk mulai.');
+  } catch (e) {
+    addSystemMessage('❌ Gagal membuat ruangan: ' + e.message);
+  }
 }
 
 async function doJoinByCode() {
-  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  const code = document.getElementById('joinCodeInput').value.trim();
   if (!code || code.length < 4) {
     alert('Masukkan kode ruangan yang valid!');
     return;
@@ -146,43 +153,50 @@ async function doJoinByCode() {
   closeJoinModal();
   isHost = false;
   currentRoom = { code, name: 'Ruangan ' + code, players: [] };
-  await initPeer(null, code);
-  enterGame(code, 'Ruangan ' + code);
-}
 
-function quickPlay() {
-  const code = generateCode();
-  isHost = true;
-  currentRoom = { code, name: 'Quick #' + code, players: [{ id: 'me', name: playerName, score: 0 }] };
-  initPeer(code).then(() => enterGame(code, 'Quick #' + code));
-}
-
-function enterGame(code, name) {
-  document.getElementById('gameRoomCode').textContent = code;
-  document.getElementById('gameRoomName').textContent = name;
   showGame();
-  updatePlayersList();
-  addSystemMessage('Kamu masuk ke ruangan. Kode: ' + code);
-  addSystemMessage('Bagikan kode ini ke teman untuk bergabung!');
-  if (isHost) {
-    addSystemMessage('Kamu adalah host. Ketik /start di chat untuk mulai ronde.');
+  document.getElementById('gameRoomName').textContent = 'Ruangan ' + code;
+  document.getElementById('gameRoomCode').textContent = code;
+  addSystemMessage('Sedang menghubungkan ke host...');
+
+  try {
+    await initPeerAsJoiner(code);
+    addSystemMessage('✅ Terhubung! Menunggu host memulai game...');
+  } catch (e) {
+    addSystemMessage('❌ Gagal terhubung: ' + e.message);
+    addSystemMessage('Pastikan host sudah membuat ruangan dan kode-nya benar.');
   }
 }
 
-// ==================== PEERJS MULTI PLAYER ====================
-function initPeer(hostId = null, joinId = null) {
-  return new Promise((resolve) => {
-    peer = new Peer(hostId || undefined, {
-      debug: 1
+function quickPlay() {
+  confirmCreateRoom();
+}
+
+// ==================== PEERJS ====================
+function initPeerAsHost() {
+  return new Promise((resolve, reject) => {
+    if (peer) {
+      try { peer.destroy(); } catch(e) {}
+    }
+
+    peer = new Peer({
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
     });
 
+    const timeout = setTimeout(() => {
+      reject(new Error('Timeout membuat peer. Coba refresh halaman.'));
+    }, 15000);
+
     peer.on('open', (id) => {
+      clearTimeout(timeout);
       myPeerId = id;
-      console.log('My Peer ID:', id);
-      if (joinId) {
-        const conn = peer.connect(joinId);
-        setupConnection(conn);
-      }
+      console.log('Host Peer ID:', id);
       resolve(id);
     });
 
@@ -191,24 +205,65 @@ function initPeer(hostId = null, joinId = null) {
     });
 
     peer.on('error', (err) => {
+      clearTimeout(timeout);
       console.error('Peer error:', err);
-      addSystemMessage('Koneksi error: ' + err.type + '. Coba refresh atau gunakan kode lain.');
-      resolve(null);
+      reject(new Error(err.type || err.message || 'Unknown error'));
+    });
+  });
+}
+
+function initPeerAsJoiner(hostId) {
+  return new Promise((resolve, reject) => {
+    if (peer) {
+      try { peer.destroy(); } catch(e) {}
+    }
+
+    peer = new Peer({
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    });
+
+    const timeout = setTimeout(() => {
+      reject(new Error('Timeout koneksi. Pastikan host online dan kode benar.'));
+    }, 15000);
+
+    peer.on('open', (id) => {
+      myPeerId = id;
+      console.log('Joiner Peer ID:', id, 'connecting to', hostId);
+
+      const conn = peer.connect(hostId, { reliable: true });
+      
+      conn.on('open', () => {
+        clearTimeout(timeout);
+        setupConnection(conn);
+        // Introduce myself
+        conn.send({ type: 'player-join', name: playerName, id: myPeerId });
+        resolve(id);
+      });
+
+      conn.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new Error('Gagal connect ke host'));
+      });
+    });
+
+    peer.on('error', (err) => {
+      clearTimeout(timeout);
+      console.error('Peer error:', err);
+      reject(new Error(err.type || 'Peer error'));
     });
   });
 }
 
 function setupConnection(conn) {
-  conn.on('open', () => {
-    connections.push(conn);
-    addSystemMessage('Pemain baru terhubung!');
-
-    if (isHost) {
-      conn.send({ type: 'welcome', room: currentRoom, word: currentWord });
-    }
-
-    broadcast({ type: 'player-join', name: playerName, id: myPeerId });
-  });
+  // Avoid duplicate
+  if (connections.find(c => c.peer === conn.peer)) return;
+  connections.push(conn);
 
   conn.on('data', (data) => {
     handlePeerData(data, conn);
@@ -218,27 +273,47 @@ function setupConnection(conn) {
     connections = connections.filter(c => c !== conn);
     addSystemMessage('Seorang pemain keluar.');
   });
+
+  conn.on('error', (err) => {
+    console.error('Connection error', err);
+  });
+
+  if (isHost) {
+    addSystemMessage('Pemain baru terhubung!');
+    // Send current room state
+    conn.send({ type: 'welcome', room: currentRoom, word: currentWord });
+  }
 }
 
 function broadcast(data) {
   connections.forEach(c => {
-    if (c.open) c.send(data);
+    if (c.open) {
+      try { c.send(data); } catch(e) { console.error(e); }
+    }
   });
 }
 
 function handlePeerData(data, conn) {
   switch (data.type) {
     case 'player-join':
-      if (!currentRoom.players.find(p => p.id === data.id)) {
+      if (currentRoom && !currentRoom.players.find(p => p.id === data.id)) {
         currentRoom.players.push({ id: data.id, name: data.name, score: 0 });
         updatePlayersList();
         addSystemMessage(data.name + ' bergabung!');
+        // Tell others too
+        if (isHost) broadcast({ type: 'player-join', name: data.name, id: data.id });
       }
       break;
     case 'welcome':
-      currentRoom = data.room;
+      if (data.room) {
+        currentRoom = data.room;
+        // Make sure I'm in the list
+        if (!currentRoom.players.find(p => p.name === playerName)) {
+          currentRoom.players.push({ id: myPeerId, name: playerName, score: 0 });
+        }
+        updatePlayersList();
+      }
       if (data.word) currentWord = data.word;
-      updatePlayersList();
       break;
     case 'draw':
       drawRemote(data);
@@ -247,7 +322,7 @@ function handlePeerData(data, conn) {
       clearCanvas(false);
       break;
     case 'chat':
-      addChatMessage(data.name, data.msg, data.correct);
+      addChatMessage(data.name, data.msg);
       break;
     case 'start-round':
       startRound(data.word, data.drawer);
@@ -315,9 +390,7 @@ function setupCanvas() {
     lastY = pos.y;
   }
 
-  function stopDraw() {
-    drawing = false;
-  }
+  function stopDraw() { drawing = false; }
 
   canvas.addEventListener('mousedown', startDraw);
   canvas.addEventListener('mousemove', draw);
@@ -365,9 +438,7 @@ function setupTools() {
   });
 
   document.getElementById('clearBtn').addEventListener('click', () => clearCanvas(true));
-  document.getElementById('undoBtn').addEventListener('click', () => {
-    clearCanvas(true);
-  });
+  document.getElementById('undoBtn').addEventListener('click', () => clearCanvas(true));
 
   document.getElementById('sendGuess').addEventListener('click', sendGuess);
   document.getElementById('guessInput').addEventListener('keypress', (e) => {
@@ -392,22 +463,37 @@ function addSystemMessage(msg) {
   const div = document.createElement('div');
   div.className = 'msg system';
   div.textContent = msg;
-  document.getElementById('chatMessages').appendChild(div);
-  document.getElementById('chatMessages').scrollTop = 9999;
+  const chat = document.getElementById('chatMessages');
+  if (chat) {
+    chat.appendChild(div);
+    chat.scrollTop = 9999;
+  }
 }
 
 function addChatMessage(name, msg, correct = false) {
   const div = document.createElement('div');
   div.className = 'msg' + (correct ? ' correct' : '');
   div.innerHTML = `<strong>${name}:</strong> ${msg}`;
-  document.getElementById('chatMessages').appendChild(div);
-  document.getElementById('chatMessages').scrollTop = 9999;
+  const chat = document.getElementById('chatMessages');
+  if (chat) {
+    chat.appendChild(div);
+    chat.scrollTop = 9999;
+  }
 }
 
 function sendGuess() {
   const input = document.getElementById('guessInput');
   const msg = input.value.trim();
   if (!msg) return;
+
+  // Command /start
+  if (msg === '/start' && isHost) {
+    input.value = '';
+    const word = WORDS[Math.floor(Math.random() * WORDS.length)];
+    broadcast({ type: 'start-round', word, drawer: playerName });
+    startRound(word, playerName);
+    return;
+  }
 
   if (currentWord && msg.toLowerCase() === currentWord.toLowerCase() && !isDrawingMode) {
     addChatMessage(playerName, '✅ ' + msg, true);
@@ -452,21 +538,10 @@ function startRound(word, drawerName) {
   }, 1000);
 }
 
-// Demo start (host can type /start in chat)
-document.getElementById('guessInput').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    const val = e.target.value.trim();
-    if (val === '/start' && isHost) {
-      e.target.value = '';
-      const word = WORDS[Math.floor(Math.random() * WORDS.length)];
-      broadcast({ type: 'start-round', word, drawer: playerName });
-      startRound(word, playerName);
-    }
-  }
-});
-
 function leaveRoom() {
-  if (peer) peer.destroy();
+  if (peer) {
+    try { peer.destroy(); } catch(e) {}
+  }
   connections = [];
   currentRoom = null;
   isHost = false;
