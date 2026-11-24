@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MarzzDraw — Draw. Guess. Win.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="bg"></div>
-
-  <!-- HOME -->
   <div id="home" class="page active">
     <header class="top">
       <div class="brand">
@@ -30,9 +27,9 @@
     <main class="home-main">
       <div class="hero-card">
         <div class="hero-left">
-          <div class="badge">NEW</div>
+          <div class="badge">NEW GAME!</div>
           <h1>Main bareng<br>teman sekarang</h1>
-          <p class="hero-desc">Gambar, tebak, dan kumpulkan skor. Multiplayer real-time.</p>
+          <p class="hero-desc">Gambar, tebak, dan kumpulkan skor bareng teman!</p>
 
           <div class="field">
             <label>Nama kamu</label>
@@ -41,12 +38,10 @@
 
           <div class="actions">
             <button class="btn btn-primary" id="btnCreate">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              Buat Ruangan
+              ＋ Buat Ruangan
             </button>
             <button class="btn btn-secondary" id="btnJoin">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
-              Gabung dengan Kode
+              🔗 Gabung dengan Kode
             </button>
           </div>
         </div>
@@ -66,12 +61,11 @@
     </main>
   </div>
 
-  <!-- JOIN MODAL -->
   <div id="joinModal" class="modal hidden">
     <div class="modal-box">
       <h2>Gabung Ruangan</h2>
       <p>Masukkan kode yang diberikan host</p>
-      <input type="text" id="codeInput" placeholder="Contoh: x7k2m9pq" maxlength="20">
+      <input type="text" id="codeInput" placeholder="Tempel kode di sini" maxlength="30">
       <div class="modal-actions">
         <button class="btn btn-ghost" id="btnCancelJoin">Batal</button>
         <button class="btn btn-primary" id="btnConfirmJoin">Gabung</button>
@@ -79,7 +73,6 @@
     </div>
   </div>
 
-  <!-- LOBBY / GAME -->
   <div id="game" class="page">
     <header class="game-top">
       <div class="room-meta">
